@@ -17,31 +17,39 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>
 #
-# $Id: package.sh 93 2021-12-10 14:26:14Z rhubarb-geek-nz $
+# $Id: package.sh 103 2021-12-13 04:28:21Z rhubarb-geek-nz $
 #
 
 VERSION=2.3.8
 EMAIL="$(git config user.email)"
 VENDOR="The Open Group"
 
-if test -e "/usr/dt"
+if test $(id -u) -eq 0
 then
-	ls -ld "/usr/dt"
-	echo "Target directory exists, this process requires it to not exist"
+	echo Must not be root >&2
 	false
 fi
 
-test ! -e "/usr/dt"
+if test -e "/usr/dt"
+then
+	echo /usr/dt must not exist >&2
+	false
+fi
 
 clean()
 {
 	rm -rf intdir dist dist2 lib64.tar
-	sudo rm -rf /usr/dt
+	rm -rf /usr/dt/*
+	sudo rmdir /usr/dt
 }
 
 trap clean 0
 
-clean
+sudo mkdir /usr/dt
+
+sudo chown $(id -u):$(id -g) /usr/dt
+
+rm -rf intdir dist dist2 lib64.tar
 
 if test ! -f "motif-$VERSION.tar.gz"
 then
@@ -76,7 +84,7 @@ then
 	)
 fi
 
-sudo rm -rf /usr/dt
+rm -rf /usr/dt/*
 
 (
 	set -ex
@@ -95,7 +103,7 @@ sudo rm -rf /usr/dt
 
 	make
 
-	sudo make install
+	make install
 )
 
 (
@@ -106,7 +114,7 @@ sudo rm -rf /usr/dt
 	tar cf - lib*.so*
 ) > lib64.tar
 
-sudo rm -rf /usr/dt
+rm -rf /usr/dt/*
 
 (
 	set -ex
@@ -125,12 +133,10 @@ sudo rm -rf /usr/dt
 
 	make
 
-	sudo make install
+	make install
 )
 
 ls -ld /usr/dt/lib lib64.tar
-
-find /usr/dt | xargs ls -ld > original.list
 
 if test -h /usr/dt/include
 then
@@ -143,8 +149,8 @@ else
 			ls -ld /usr/dt/share/include
 			false
 		fi
-		sudo mv /usr/dt/include /usr/dt/share/
-		sudo ln -s share/include /usr/dt/include
+		mv /usr/dt/include /usr/dt/share/
+		ln -s share/include /usr/dt/include
 	fi
 fi
 
@@ -159,13 +165,11 @@ else
 			ls -ld /usr/dt/share/man
 			false
 		fi
-		sudo mv /usr/dt/man /usr/dt/share/
+		mv /usr/dt/man /usr/dt/share/
 	fi
 
-	sudo ln -s share/man /usr/dt/man
+	ln -s share/man /usr/dt/man
 fi
-
-find /usr/dt | xargs ls -ld > adjusted.list
 
 rm -rf intdir dist
 
@@ -380,7 +384,7 @@ EMAIL="$EMAIL"
 BASEDIR="/"
 EOF
 
-sudo rm -rf /usr/dt
+rm -rf /usr/dt/*
 
 rm lib64.tar
 

@@ -1,0 +1,104 @@
+diff --git a/demos/unsupported/xmform/xmform.c b/demos/unsupported/xmform/xmform.c
+index 0e04674..f526d23 100644
+--- a/demos/unsupported/xmform/xmform.c
++++ b/demos/unsupported/xmform/xmform.c
+@@ -50,6 +50,7 @@ xmform*topShadowColor:           white
+ xmform*bottomShadowColor:        black
+ ***-------------------------------------------------------------------*/
+ 
++#include <stdlib.h>
+ #include <Xm/Xm.h>
+ #include <Xm/Form.h>
+ #include <Xm/PushB.h>
+diff --git a/lib/Xm/IconFile.c b/lib/Xm/IconFile.c
+index 68105e0..b0e835d 100644
+--- a/lib/Xm/IconFile.c
++++ b/lib/Xm/IconFile.c
+@@ -195,7 +195,16 @@ MakeCachedDirEntry(String dirName)
+          * Instead, just cache currDirect->d_name, null-terminated.
+          */
+         cachedDirType = DtVALID_CACHED_DIR;
+-	while ((currDirect = _XReaddir(fileDesc, dirEntryBuf)) != NULL) {
++	while (1) {
++#ifdef _LP64
++		struct dirent dirEntryBuf;
++		memset(&dirEntryBuf,0,sizeof(dirEntryBuf));
++		currDirect=NULL;
++		if (readdir_r(fileDesc,&dirEntryBuf,&currDirect) || (currDirect==NULL)) break;
++#else
++	  if (!(currDirect = _XReaddir(fileDesc, dirEntryBuf))) break;
++#endif
++
+ 	  bufLen = strlen(currDirect->d_name);
+ 	  if (bufLen + oldBufLen + 1 >= MAX_CACHE_DIR_SIZE) {
+ 	    /*
+diff --git a/lib/Xm/XmString.c b/lib/Xm/XmString.c
+index c1eb528..81e3b45 100644
+--- a/lib/Xm/XmString.c
++++ b/lib/Xm/XmString.c
+@@ -36,7 +36,7 @@ static char rcsid[] = "$TOG: XmString.c /main/34 1998/04/16 14:35:32 mgreess $"
+ #ifndef X_NOT_STDC_ENV
+ #include <stdlib.h>
+ #endif
+-#include <string.h>
++#include <strings.h>
+ #include <ctype.h>
+ 
+ #ifdef __cplusplus
+diff --git a/lib/Xm/Xmfuncs.h b/lib/Xm/Xmfuncs.h
+index 2c44be8..93e3bf9 100644
+--- a/lib/Xm/Xmfuncs.h
++++ b/lib/Xm/Xmfuncs.h
+@@ -40,11 +40,8 @@ void bzero();
+ int bcmp();
+ #else
+ #if (__STDC__ && !defined(X_NOT_STDC_ENV) && !defined(sun) && !defined(macII) && !defined(apollo)) || defined(SVR4) || defined(hpux) || defined(_IBMR2) || defined(_SEQUENT_)
+-#include <string.h>
++#include <strings.h>
+ #define _XFUNCS_H_INCLUDED_STRING_H
+-#define bcopy(b1,b2,len) memmove(b2, b1, (size_t)(len))
+-#define bzero(b,len) memset(b, 0, (size_t)(len))
+-#define bcmp(b1,b2,len) memcmp(b1, b2, (size_t)(len))
+ #else
+ #ifdef sgi
+ #include <bstring.h>
+@@ -68,10 +65,8 @@ int bcmp();
+ #if !defined(X_NOT_STDC_ENV) && (!defined(sun) || defined(SVR4))
+ /* the ANSI C way */
+ #ifndef _XFUNCS_H_INCLUDED_STRING_H
+-#include <string.h>
++#include <strings.h>
+ #endif
+-#undef bzero
+-#define bzero(b,len) memset(b,0,len)
+ #else /* else X_NOT_STDC_ENV or SunOS 4 */
+ #if defined(SYSV) || defined(luna) || defined(sun) || defined(__sxg__)
+ #include <memory.h>
+diff --git a/lib/Xm/Xmos.c b/lib/Xm/Xmos.c
+index 92cc795..a9b55df 100644
+--- a/lib/Xm/Xmos.c
++++ b/lib/Xm/Xmos.c
+@@ -787,11 +787,22 @@ void
+ 		  }
+ 		else
+ 		  {   
++#ifdef _LP64
++			struct dirent dirEntryBuf;
++			memset(&dirEntryBuf,0,sizeof(dirEntryBuf));
++			dirEntry=NULL;
++		    if (readdir_r(dirStream, &dirEntryBuf,&dirEntry) || (dirEntry==NULL))
++		      {
++			dirName = NULL;
++			break;
++		      }
++#else
+ 		    if ((dirEntry = _XReaddir(dirStream, dirEntryBuf)) == NULL)
+ 		      {
+ 			dirName = NULL;
+ 			break;
+-		      } 
++		      }
++#endif
+ 		    dirName = dirEntry->d_name;
+ 		    dirNameLen = strlen(dirName);
+ 		    if (loadCache)

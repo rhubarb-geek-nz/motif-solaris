@@ -17,7 +17,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>
 #
-# $Id: package.sh 92 2021-12-10 07:52:12Z rhubarb-geek-nz $
+# $Id: package.sh 93 2021-12-10 14:26:14Z rhubarb-geek-nz $
 #
 
 VERSION=2.3.8
@@ -148,6 +148,23 @@ else
 	fi
 fi
 
+if test -h /usr/dt/man
+then
+	echo man is already link
+else
+	if test -d /usr/dt/man
+	then
+		if test -e /usr/dt/share/man
+		then
+			ls -ld /usr/dt/share/man
+			false
+		fi
+		sudo mv /usr/dt/man /usr/dt/share/
+	fi
+
+	sudo ln -s share/man /usr/dt/man
+fi
+
 find /usr/dt | xargs ls -ld > adjusted.list
 
 rm -rf intdir dist
@@ -175,7 +192,7 @@ mkdir intdir dist
 				/usr/dt/share/man/man3/* )
 					echo SUNWmfman "$N" 
 					;;
-				/usr/dt/lib/lib* | /usr/dt/bin/xmbind | /usr/dt/lib/X11/bindings/* | /usr/dt/share/include/* | /usr/dt/share/man/man1/xmbind.1 | /usr/dt/include )
+				/usr/dt/lib/lib* | /usr/dt/bin/xmbind | /usr/dt/lib/X11/bindings/* | /usr/dt/share/include/* | /usr/dt/share/man/man1/xmbind.1 | /usr/dt/include | /usr/dt/man )
 					echo SUNWmfrun "$N"
 					;;
 				/usr/dt/bin/uil | /usr/dt/share/Xm/* | /usr/dt/share/man/manm/* | /usr/dt/share/man/man1/uil.1 | /usr/dt/share/man/man5/* | /usr/dt/share/man/man1/uil.1 )
@@ -284,8 +301,9 @@ mkdir -p intdir/SUNWdtcor/usr/dt
 )
 
 cat > intdir/depend <<EOF
-P SUNWdtcor Solaris Desktop /usr/dt filesystem anchor
-P SUNWmfrun Motif RunTime Kit
+P SUNWcsr Core Solaris, (Root)
+P SUNWcsu Core Solaris, (Usr)
+P SUNWcsd Core Solaris Devices
 EOF
 
 ./dir2pkg.sh intdir intdir/SUNWdtcor dist <<EOF

@@ -17,7 +17,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>
 #
-# $Id: package.sh 91 2021-12-08 22:22:00Z rhubarb-geek-nz $
+# $Id: package.sh 92 2021-12-10 07:52:12Z rhubarb-geek-nz $
 #
 
 VERSION=2.3.8
@@ -46,7 +46,6 @@ clean
 if test ! -f "motif-$VERSION.tar.gz"
 then
 	curl --fail --location --output motif-$VERSION.tar.gz "https://sourceforge.net/projects/motif/files/Motif%20$VERSION%20Source%20Code/motif-$VERSION.tar.gz"
-
 fi
 
 ACTUAL=$(sha256sum "motif-$VERSION.tar.gz" | while read A B; do echo $A; break; done)
@@ -131,6 +130,26 @@ sudo rm -rf /usr/dt
 
 ls -ld /usr/dt/lib lib64.tar
 
+find /usr/dt | xargs ls -ld > original.list
+
+if test -h /usr/dt/include
+then
+	echo include is already link
+else
+	if test -d /usr/dt/include
+	then
+		if test -e /usr/dt/share/include
+		then
+			ls -ld /usr/dt/share/include
+			false
+		fi
+		sudo mv /usr/dt/include /usr/dt/share/
+		sudo ln -s share/include /usr/dt/include
+	fi
+fi
+
+find /usr/dt | xargs ls -ld > adjusted.list
+
 rm -rf intdir dist
 
 mkdir intdir dist
@@ -138,7 +157,17 @@ mkdir intdir dist
 (
 	find /usr/dt | while read N
 	do
-		if test -d "$N"
+		ISDIR=false
+
+		if test ! -h "$N"
+		then
+			if test -d "$N"
+			then
+				ISDIR=true
+			fi
+		fi
+
+		if $ISDIR
 		then
 			echo dir "$N" 
 		else
@@ -146,7 +175,7 @@ mkdir intdir dist
 				/usr/dt/share/man/man3/* )
 					echo SUNWmfman "$N" 
 					;;
-				/usr/dt/lib/lib* | /usr/dt/bin/xmbind | /usr/dt/lib/X11/bindings/* | /usr/dt/include/uil/* | /usr/dt/include/X11/bitmaps* | /usr/dt/include/Mrm/* | /usr/dt/include/Xm/* | /usr/dt/share/man/man1/xmbind.1 )
+				/usr/dt/lib/lib* | /usr/dt/bin/xmbind | /usr/dt/lib/X11/bindings/* | /usr/dt/share/include/* | /usr/dt/share/man/man1/xmbind.1 | /usr/dt/include )
 					echo SUNWmfrun "$N"
 					;;
 				/usr/dt/bin/uil | /usr/dt/share/Xm/* | /usr/dt/share/man/manm/* | /usr/dt/share/man/man1/uil.1 | /usr/dt/share/man/man5/* | /usr/dt/share/man/man1/uil.1 )
@@ -156,9 +185,9 @@ mkdir intdir dist
 					echo SUNWmfwm "$N" 
 					;;
 				* )
-					echo "+++++++++++++++++++++++++++++++++++++++++++"
-					echo "+ unknown package for $N"
-					echo "+++++++++++++++++++++++++++++++++++++++++++"
+					echo "+++++++++++++++++++++++++++++++++++++++++++" 1>&2
+					echo "+ unknown package for $N" 1>&2
+					echo "+++++++++++++++++++++++++++++++++++++++++++" 1>&2
 					false
 					;;
 			esac
@@ -166,15 +195,29 @@ mkdir intdir dist
 	done
 ) | while read PKG FILE
 do
-	if test -d "$FILE"
+	echo processing $PKG $FILE
+
+	ISDIR=false
+
+	if test -h "$N"
 	then
-		:
+		echo $FILE is symbolic link - $(readlink "$N")
+	else
+		if test -d "$N"
+		then
+			ISDIR=true
+		fi
+	fi
+
+	if $ISDIR
+	then
+		echo $FILE is a directory
 	else
 		mkdir -p "intdir/$PKG"
 
 		(
 			cd "/"
-			tar cf - ./"$FILE"
+			tar cf - "./$FILE"
 		) | (
 			cd "intdir/$PKG"
 			tar xf -
@@ -194,11 +237,13 @@ mkdir -p intdir/SUNWdtcor/usr/dt
 	case "$(uname -p)" in
 		i386 )
 			mkdir amd64
+			ln -s amd64 64
 			cd amd64
 			tar xvf -
 			;;
 		* )
 			mkdir sparcv9
+			ln -s sparcv9 64
 			cd sparcv9
 			tar xvf -
 			;;
@@ -331,7 +376,7 @@ do
 	done
 done
 
-PKGFILE="$(pwd)/motif-2.3.8-$(uname -p).pkg"
+PKGFILE="$(pwd)/motif-$VERSION-$(uname -p).pkg"
 
 cat </dev/null >"$PKGFILE"
 
